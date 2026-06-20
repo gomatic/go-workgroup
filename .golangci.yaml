@@ -1,0 +1,50 @@
+# golangci-lint v2 — the single lint config for every gomatic consumer repo.
+# https://golangci-lint.run/docs/configuration/file/
+#
+# It runs golangci-lint's default linters PLUS the central complexity gate
+# (gocognit/cyclop/funlen/nestif/maintidx/dupl) — folded in here so there is one
+# config and one `golangci-lint run` (via `make lint`), not a second pass over a
+# separate golangci.complexity.yaml. Tune the complexity thresholds below and
+# every repo that copies this file picks up the change.
+version: "2"
+
+run:
+  timeout: 5m
+  allow-parallel-runners: true
+
+linters:
+  enable:
+    - gocognit  # cognitive complexity — how hard a function is to read
+    - cyclop    # cyclomatic complexity — number of independent branches
+    - funlen    # function length in lines / statements
+    - nestif    # depth of nested if blocks
+    - maintidx  # maintainability index (lower = worse)
+    - dupl      # copy-paste duplicated code fragments
+  settings:
+    gocognit:
+      min-complexity: 30
+    cyclop:
+      max-complexity: 30
+    funlen:
+      lines: 100
+      statements: 60
+    nestif:
+      min-complexity: 5
+    maintidx:
+      under: 20
+    dupl:
+      threshold: 150
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
