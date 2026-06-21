@@ -207,9 +207,19 @@ lint: vet ## Run golangci-lint (incl. the central complexity linters)
 staticcheck: ## Run staticcheck
 	$(STATICCHECK) ./...
 
+# VULNCHECK_SCAN is the govulncheck precision knob. The default `symbol` builds
+# the call graph and reports only vulnerabilities actually reachable from a
+# called symbol. A repo whose generics trip the known x/vuln source-mode panic
+# (`ForEachElement called on type containing *types.TypeParam`, govulncheck
+# <=v1.4.0) sets `VULNCHECK_SCAN = package`: that skips call-graph construction
+# (so no panic) and flags any vulnerable *package* that is imported at all —
+# strictly more conservative than symbol scanning, never less, so it can't hide
+# a finding. Drop back to `symbol` once upstream fixes the panic.
+VULNCHECK_SCAN ?= symbol
+
 .PHONY: vulncheck
 vulncheck: ## Run govulncheck
-	$(GOVULNCHECK) -mode=source ./...
+	$(GOVULNCHECK) -mode=source -scan=$(VULNCHECK_SCAN) ./...
 
 ##@ Test
 

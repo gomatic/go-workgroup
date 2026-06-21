@@ -22,7 +22,11 @@ linters:
     - gocognit  # cognitive complexity — how hard a function is to read
   settings:
     gocognit:
-      min-complexity: 30
+      # The gomatic Go standard caps cognitive complexity at 7: any function
+      # above it must be decomposed into named helpers or first-class functions.
+      # min-complexity is the threshold golangci REPORTS above, so 7 flags every
+      # function whose complexity exceeds 7 (i.e. 8+), matching `gocognit -over 7`.
+      min-complexity: 7
   exclusions:
     generated: lax
     # Complexity is gated on PRODUCTION code only — matching the repos' original
