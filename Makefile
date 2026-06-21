@@ -1,31 +1,39 @@
-# gomatic/build — shared Go toolchain
+# gomatic/build — shared Go toolchain (canonical source)
 #
 # Single source of truth for how every gomatic Go library and service runs
-# vet / lint / staticcheck / tests / formatting and builds binaries. There is no
-# per-repo Makefile: a consumer just runs this one, pointed at its own checkout.
+# vet / lint / staticcheck / tests / formatting and builds binaries.
 #
-#   alias bmake='make -f ${BUILD_HOME}/Makefile'
-#   bmake lint test build          # from inside any consumer repo
+# This Makefile and its scripts/ are COPIED VERBATIM into every gomatic Go repo
+# and live in-tree there — each repo owns its own copy. The gomatic repos are
+# spread across many orgs, so the shared-checkout indirection used elsewhere (a
+# sibling gomatic/build clone with BUILD_HOME pointed at it, or a `make -f
+# ${BUILD_HOME}/Makefile` alias) is deliberately NOT used here. A repo just runs
+# its own in-tree copy directly:
 #
-# In CI (.github/workflows of the consumer), check out gomatic/build beside the
-# consumer and point BUILD_HOME at it:
+#   make lint test build           # from inside any repo
+#
+# gomatic/build is the UPSTREAM that every copy tracks; refresh a repo's copy
+# from canonical with `make build-self-update` (scripts/self-update.sh). The only
+# things a copy edits inline are the per-repo knobs below (COVER_PKGS, BINARIES).
+#
+# CI (.github/workflows of each repo) checks out only that repo and runs the
+# in-tree Makefile directly — no gomatic/build checkout, no BUILD_HOME override:
 #   - uses: actions/checkout@v5
-#     with: { repository: gomatic/build, path: .build }
 #   - uses: actions/setup-go@v5
 #     with: { go-version: '1.26', check-latest: true, cache: true }
-#   - run: make -f "$GITHUB_WORKSPACE/.build/Makefile" ci BUILD_HOME="$GITHUB_WORKSPACE/.build"
+#   - run: make ci
 #
-# Everything is derived from the consumer's own source of truth:
+# Everything else is derived from the repo's own source of truth:
 #   BINARIES   <- the `id:` values under `builds:` in ./.goreleaser.yml
 #   SUBMODULES <- nested go.mod dirs (excluding vendor/testdata/fixtures)
 # Override either on the command line for the rare repo that needs to.
 #
-# The tools are NOT baked here: every consumer repo pins its own toolchain in
-# its go.mod `tool (...)` stanza, and this Makefile runs each one with `go tool
-# <name>` from the consumer's $(CURDIR). The version is whatever that repo
-# pinned — built and cached by the go command on first use. In the Docker image
-# the build cache is pre-warmed by `make tools`, so CI never compiles a tool;
-# locally `go tool` builds on first use and reuses the cache thereafter.
+# The tools are NOT baked here: every repo pins its own toolchain in its go.mod
+# `tool (...)` stanza, and this Makefile runs each one with `go tool <name>` from
+# $(CURDIR). The version is whatever that repo pinned — built and cached by the
+# go command on first use. In the Docker image the build cache is pre-warmed by
+# `make tools`, so CI never compiles a tool; locally `go tool` builds on first
+# use and reuses the cache thereafter.
 
 # A Self-Documenting Makefile: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 .DEFAULT_GOAL := test
@@ -174,10 +182,12 @@ ci-local: ## Run the CI aggregate inside the baked image, exactly as CI does
 ##@ Code Quality
 
 # `check` is the comprehensive DEVELOPER gate: run it locally before pushing. It
-# is a SUPERSET of `ci` — `complexity` and `vulncheck` run here but are held
-# out of CI for now (see the soft-rollout note above the `ci` target).
+# is the static + `vulncheck` + 100%-`cover` core that `ci` ALSO enforces, so a
+# local `check` pass predicts a green CI; `ci` is a superset that additionally
+# runs `test-all` (race) and `build-all` (cross-compile). The complexity linters
+# are part of `lint` now (folded into .golangci.yaml).
 .PHONY: check
-check: lint staticcheck vulncheck cover ## Full developer gate (superset of CI)
+check: lint staticcheck vulncheck cover ## Full developer gate (CI runs this + race & cross-compile)
 
 # Per-submodule vet targets via a static pattern rule (NOT `vet-%:` — GNU make
 # skips implicit/pattern rules for phony targets; a static pattern with an
@@ -192,7 +202,6 @@ $(VET_SUBMODULES): vet@%:
 .PHONY: lint
 lint: vet ## Run golangci-lint (incl. the central complexity linters)
 	$(GOLANGCI_LINT) run
-
 
 .PHONY: staticcheck
 staticcheck: ## Run staticcheck
@@ -284,7 +293,8 @@ build: $(BINARIES) ## Build all binaries for the current platform
 
 # Build hook. Deliberately a no-op: generated code is committed and formatting
 # is enforced by the gate, so `make build` must NOT regenerate or rewrite the
-# tree. Run `make fmt` / `make generate` explicitly when you want them.
+# tree (regeneration is fragile across tool versions and would dirty the working
+# tree mid-build). Run `make fmt` / `make generate` explicitly when you want them.
 .PHONY: pre-build
 pre-build:
 
