@@ -1,5 +1,7 @@
 # workgroup
 
+[![CI](https://github.com/gomatic/workgroup/actions/workflows/ci.yml/badge.svg)](https://github.com/gomatic/workgroup/actions/workflows/ci.yml)
+
 Package `workgroup` distributes work across concurrent goroutines with type-safe
 generics, structured logging, and configurable error handling.
 
