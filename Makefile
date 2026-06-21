@@ -145,15 +145,15 @@ $(BUILD_DIR) $(COVERAGE_FOLDER):
 
 ##@ CI
 
-# `ci` is the HARD CI gate. It deliberately omits `complexity` and `vulncheck`
-# even though both tools are pinned and built here: those two run in `check`
-# (the developer gate) but are NOT yet wired into CI. This is an intentional
-# soft rollout — the central complexity gate (golangci.complexity.yaml) and
-# govulncheck are surfaced to developers first so repos can clean up before a
-# breach fails everyone's build. Promote them into this recipe once consumers
-# are green.
+# `ci` is the HARD CI gate — the single source of truth for what every push must
+# pass. It is a SUPERSET of `check` (the developer gate): the same static,
+# vulnerability and 100%-`cover` gates, plus the race detector (`test-all`) and
+# cross-platform compilation (`build-all`) that `check` skips for local speed.
+# `vulncheck` and `cover` were once held out of CI during a soft rollout;
+# consumers are green, so they are enforced on every push now — coverage and
+# vulnerabilities can no longer silently regress in CI.
 .PHONY: ci
-ci: lint staticcheck test-all build-all ## Aggregate target for CI builds
+ci: lint staticcheck vulncheck cover test-all build-all ## Aggregate target for CI builds
 
 # True CI parity: run the real `ci` recipe INSIDE the baked toolchain image,
 # so it uses the pinned tools and the exact base environment CI runs in — not the
