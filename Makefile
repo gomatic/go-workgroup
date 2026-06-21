@@ -111,7 +111,7 @@ BINARIES ?= $(shell test -n '$(GORELEASER_CONFIG)' && yq '.project_name as $$pn 
 
 # SUBMODULES: nested modules (own go.mod), excluding vendored/test-fixture mods
 # and Terraform-downloaded module sources under .terraform/.
-SUBMODULES ?= $(patsubst ./%/,%,$(dir $(shell find . -mindepth 2 -name go.mod -not -path '*/vendor/*' -not -path '*/testdata/*' -not -path '*/fixtures/*' -not -path '*/.terraform/*')))
+SUBMODULES ?= $(patsubst ./%/,%,$(dir $(shell find . -mindepth 2 -name go.mod -not -path '*/vendor/*' -not -path '*/testdata/*' -not -path '*/fixtures/*' -not -path '*/.terraform/*' -not -path '*/tools/*')))
 
 BUILD_DIR ?= bin
 GOOS      ?= $(shell go env GOOS)

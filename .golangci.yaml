@@ -13,13 +13,17 @@ run:
   allow-parallel-runners: true
 
 linters:
+  # golangci-lint is the central COMPLEXITY gate (its intended role here): only
+  # the complexity linters run, so `make lint` does not impose golangci-lint's
+  # broad default set (errcheck/ineffassign/unused/...) on top of the standard
+  # already enforced by the dedicated `staticcheck`, `vet` and `vulncheck` steps.
+  default: none
   enable:
     - gocognit  # cognitive complexity — how hard a function is to read
     - cyclop    # cyclomatic complexity — number of independent branches
     - funlen    # function length in lines / statements
     - nestif    # depth of nested if blocks
     - maintidx  # maintainability index (lower = worse)
-    - dupl      # copy-paste duplicated code fragments
   settings:
     gocognit:
       min-complexity: 30
@@ -32,10 +36,19 @@ linters:
       min-complexity: 5
     maintidx:
       under: 20
-    dupl:
-      threshold: 150
   exclusions:
     generated: lax
+    # Complexity is gated on PRODUCTION code only — matching the repos' original
+    # `gocognit` gate (which ran over non-_test.go files). Test code is naturally
+    # long/repetitive (table setups, fixtures), so the complexity linters skip it.
+    rules:
+      - path: _test\.go
+        linters:
+          - gocognit
+          - cyclop
+          - funlen
+          - nestif
+          - maintidx
     paths:
       - third_party$
       - builtin$
