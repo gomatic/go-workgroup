@@ -1,4 +1,4 @@
-module github.com/gomatic/workgroup
+module github.com/gomatic/go-workgroup
 
 go 1.26.3
 
