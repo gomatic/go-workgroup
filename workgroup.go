@@ -13,8 +13,8 @@ type Source[T any] func(context.Context, chan<- T) error
 // Worker processes a single work item. id is the 0-based worker index.
 type Worker[T any] func(context.Context, int, T) error
 
-// transformer maps an input item to an output item within a Pipe stage.
-type transformer[In, Out any] func(context.Context, int, In) (Out, error)
+// Transformer maps an input item to an output item within a Pipe stage.
+type Transformer[In, Out any] func(context.Context, int, In) (Out, error)
 
 // Run distributes work from source across N workers (default: NumCPU).
 // Blocks until all work is processed or context is cancelled.
@@ -37,6 +37,7 @@ func Run[T any](ctx context.Context, source Source[T], worker Worker[T], opts ..
 	work := make(chan T)
 	produced := runSource(ctx, cancel, source, work)
 	errs := runWorkers(ctx, cancel, cfg, worker, work)
+	drain(work)
 	sourceErr := produced()
 
 	return cfg.outcome(ctx, attrs, errs, sourceErr)
@@ -120,7 +121,7 @@ func FanIn[T any](ctx context.Context, source Source[T], worker Worker[T], opts 
 // Pipe creates a Source from a transformation, enabling stage chaining.
 // The returned Source, when consumed by a downstream Run, executes the
 // upstream source with n workers applying transform to each item.
-func Pipe[In, Out any](_ context.Context, n int, source Source[In], transform transformer[In, Out], opts ...Optional) Source[Out] {
+func Pipe[In, Out any](n int, source Source[In], transform Transformer[In, Out], opts ...Optional) Source[Out] {
 	return func(ctx context.Context, out chan<- Out) error {
 		worker := Worker[In](func(ctx context.Context, id int, item In) error {
 			result, err := transform(ctx, id, item)
@@ -130,6 +131,17 @@ func Pipe[In, Out any](_ context.Context, n int, source Source[In], transform tr
 			return send(ctx, out, result)
 		})
 		return Run(ctx, source, worker, append([]Optional{Workers(n)}, opts...)...)
+	}
+}
+
+// drain discards any items still pending on work until it is closed. It runs
+// after every worker has returned, so a non-cooperative source — one that
+// ignores ctx and blocks on a raw send — has its pending send unblocked,
+// letting the source observe cancellation, return, and close work. Without it,
+// such a send would deadlock and Run would hang on the source's wg.Wait. On the
+// happy path the channel is already closed and drained, so this returns at once.
+func drain[T any](work <-chan T) {
+	for range work {
 	}
 }
 

@@ -243,6 +243,25 @@ func TestRunFailFast(t *testing.T) {
 	assert.Less(t, processed.Load(), int64(1000), "fail-fast skips remaining items")
 }
 
+func TestRunDrainsNonCooperativeSource(t *testing.T) {
+	// A non-cooperative source ignores ctx and uses raw sends. After the worker
+	// fails fast and every worker exits, the source's next raw send has no
+	// reader. Run drains the work channel so that pending send unblocks, the
+	// source finishes and closes work, and Run returns instead of hanging on the
+	// source's wg.Wait. Without the drain this test deadlocks (and times out).
+	const items = 3
+	source := Source[int](func(_ context.Context, out chan<- int) error {
+		for i := range items {
+			out <- i // raw send: deliberately ignores ctx
+		}
+		return nil
+	})
+	worker := Worker[int](func(context.Context, int, int) error { return errWorker })
+
+	err := Run(context.Background(), source, worker, Workers(1))
+	assert.ErrorIs(t, err, errWorker)
+}
+
 func TestRunCollectAll(t *testing.T) {
 	const items = 5
 	worker := Worker[int](func(context.Context, int, int) error { return errWorker })
@@ -331,7 +350,7 @@ func TestPipeTransform(t *testing.T) {
 	var sum atomic.Int64
 
 	ctx := context.Background()
-	doubled := Pipe(ctx, 4, counterSource(n), func(_ context.Context, _, item int) (int, error) {
+	doubled := Pipe(4, counterSource(n), func(_ context.Context, _, item int) (int, error) {
 		return item * 2, nil
 	})
 	worker := Worker[int](func(_ context.Context, _, item int) error {
@@ -346,7 +365,7 @@ func TestPipeTransform(t *testing.T) {
 func TestPipeTransformError(t *testing.T) {
 	transformErr := errors.New("transform failed")
 	ctx := context.Background()
-	piped := Pipe(ctx, 1, counterSource(10), func(_ context.Context, _, item int) (int, error) {
+	piped := Pipe(1, counterSource(10), func(_ context.Context, _, item int) (int, error) {
 		if item == 3 {
 			return 0, transformErr
 		}
@@ -361,7 +380,7 @@ func TestPipeContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	doubled := Pipe(ctx, 1, counterSource(1000), func(_ context.Context, _, item int) (int, error) {
+	doubled := Pipe(1, counterSource(1000), func(_ context.Context, _, item int) (int, error) {
 		return item * 2, nil
 	})
 
@@ -430,7 +449,7 @@ func ExampleFanOut() {
 
 func ExamplePipe() {
 	ctx := context.Background()
-	doubled := Pipe(ctx, 2, counterSource(6), func(_ context.Context, _, item int) (int, error) {
+	doubled := Pipe(2, counterSource(6), func(_ context.Context, _, item int) (int, error) {
 		return item * 2, nil
 	})
 

@@ -1,6 +1,6 @@
 # workgroup
 
-[![CI](https://github.com/gomatic/workgroup/actions/workflows/ci.yml/badge.svg)](https://github.com/gomatic/workgroup/actions/workflows/ci.yml)
+[![CI](https://github.com/gomatic/go-workgroup/actions/workflows/ci.yml/badge.svg)](https://github.com/gomatic/go-workgroup/actions/workflows/ci.yml)
 
 Package `workgroup` distributes work across concurrent goroutines with type-safe
 generics, structured logging, and configurable error handling.
@@ -8,7 +8,7 @@ generics, structured logging, and configurable error handling.
 ## Install
 
 ```bash
-go get github.com/gomatic/workgroup
+go get github.com/gomatic/go-workgroup
 ```
 
 Requires Go 1.26+.
@@ -46,7 +46,7 @@ err := workgroup.FanIn(ctx, source, worker)
 ### Pipeline: Fan-Out Transform into Fan-In
 
 ```go
-doubled := workgroup.Pipe(ctx, 4, source,
+doubled := workgroup.Pipe(4, source,
     func(ctx context.Context, id int, item int) (int, error) {
         return item * 2, nil
     },
