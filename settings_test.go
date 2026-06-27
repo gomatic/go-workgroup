@@ -13,12 +13,12 @@ import (
 func TestNewSettings(t *testing.T) {
 	logger := slog.Default()
 	tests := []struct {
+		wantLogger  *slog.Logger
 		name        string
+		wantName    string
 		opts        []Optional
 		wantWorkers int
-		wantName    string
 		wantOnError onError
-		wantLogger  *slog.Logger
 	}{
 		{name: "defaults", opts: nil, wantWorkers: runtime.NumCPU(), wantName: "", wantOnError: FailFast, wantLogger: slog.Default()},
 		{name: "workers set", opts: []Optional{Workers(4)}, wantWorkers: 4, wantOnError: FailFast, wantLogger: slog.Default()},
@@ -67,12 +67,12 @@ func TestSettingsOutcome(t *testing.T) {
 	source := errors.New("source failed")
 
 	tests := []struct {
+		sourceErr error
+		wantIs    error
 		name      string
 		errs      []error
-		sourceErr error
 		cancel    bool
 		wantNil   bool
-		wantIs    error
 	}{
 		{name: "worker errors take priority", errs: []error{worker}, wantIs: worker},
 		{name: "real source error propagates", sourceErr: source, wantIs: source},

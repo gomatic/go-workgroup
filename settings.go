@@ -8,9 +8,9 @@ import (
 )
 
 type settings struct {
-	workers int
-	name    string
 	logger  *slog.Logger
+	name    string
+	workers int
 	onError onError
 }
 

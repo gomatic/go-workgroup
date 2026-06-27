@@ -17,11 +17,11 @@ func TestError(t *testing.T) {
 
 func TestErrorWith(t *testing.T) {
 	tests := []struct {
+		cause    error
 		name     string
 		sentinel Error
-		cause    error
-		args     []any
 		wantMsg  string
+		args     []any
 	}{
 		{
 			name:     "no args, nil cause returns the sentinel itself",

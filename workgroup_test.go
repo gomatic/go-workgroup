@@ -53,10 +53,10 @@ func TestRunValidation(t *testing.T) {
 	source := counterSource(0)
 
 	tests := []struct {
-		name   string
+		wantIs error
 		source Source[int]
 		worker Worker[int]
-		wantIs error
+		name   string
 	}{
 		{name: "nil source", source: nil, worker: worker, wantIs: ErrNilSource},
 		{name: "nil worker", source: source, worker: nil, wantIs: ErrNilWorker},
@@ -119,8 +119,8 @@ func TestRunDefaultWorkers(t *testing.T) {
 
 func TestRunDistinctWorkerIDs(t *testing.T) {
 	tests := []struct {
-		name string
 		run  func(Source[int], Worker[int]) error
+		name string
 		want int
 	}{
 		{name: "Run with Workers(4)", run: runWith(Workers(4)), want: 4},
@@ -386,8 +386,8 @@ func TestSend(t *testing.T) {
 
 func TestContextError(t *testing.T) {
 	tests := []struct {
-		name string
 		err  error
+		name string
 		want bool
 	}{
 		{name: "canceled", err: context.Canceled, want: true},

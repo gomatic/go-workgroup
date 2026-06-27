@@ -120,7 +120,7 @@ func FanIn[T any](ctx context.Context, source Source[T], worker Worker[T], opts 
 // Pipe creates a Source from a transformation, enabling stage chaining.
 // The returned Source, when consumed by a downstream Run, executes the
 // upstream source with n workers applying transform to each item.
-func Pipe[In, Out any](ctx context.Context, n int, source Source[In], transform transformer[In, Out], opts ...Optional) Source[Out] {
+func Pipe[In, Out any](_ context.Context, n int, source Source[In], transform transformer[In, Out], opts ...Optional) Source[Out] {
 	return func(ctx context.Context, out chan<- Out) error {
 		worker := Worker[In](func(ctx context.Context, id int, item In) error {
 			result, err := transform(ctx, id, item)
