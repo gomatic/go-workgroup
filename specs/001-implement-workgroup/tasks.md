@@ -19,7 +19,7 @@
 
 **Purpose**: Initialize module and remove legacy code
 
-- [x] T001 Create go.mod with module github.com/gomatic/workgroup and go 1.26 in go.mod
+- [x] T001 Create go.mod with module github.com/gomatic/go-workgroup and go 1.26 in go.mod
 - [x] T002 Remove legacy files: .travis.yml, ex/, TODO.md, wg.go, wg_test.go
 
 ---

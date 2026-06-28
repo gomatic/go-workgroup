@@ -144,7 +144,7 @@ specs/001-implement-workgroup/
 ### Source Code (repository root)
 
 ```text
-go.mod                 # module github.com/gomatic/workgroup, go 1.26
+go.mod                 # module github.com/gomatic/go-workgroup, go 1.26
 options.go             # Optional interface, named option types (Workers, Name, Log, OnError)
 settings.go            # settings struct, must(), newSettings(), defaults
 workgroup.go           # Source[T], Worker[T], Run, FanOut, FanIn, Pipe (public API)

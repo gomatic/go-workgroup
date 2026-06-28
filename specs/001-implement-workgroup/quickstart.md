@@ -1,11 +1,11 @@
 # Quickstart: workgroup
 
-**Package**: `github.com/gomatic/workgroup`
+**Package**: `github.com/gomatic/go-workgroup`
 
 ## Install
 
 ```bash
-go get github.com/gomatic/workgroup
+go get github.com/gomatic/go-workgroup
 ```
 
 ## Basic Usage — Fan-Out

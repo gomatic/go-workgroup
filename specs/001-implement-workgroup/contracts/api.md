@@ -1,6 +1,6 @@
 # Public API Contract: workgroup
 
-**Package**: `github.com/gomatic/workgroup`
+**Package**: `github.com/gomatic/go-workgroup`
 
 ## Types
 
