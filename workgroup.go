@@ -141,7 +141,10 @@ func Pipe[In, Out any](n int, source Source[In], transform Transformer[In, Out],
 // such a send would deadlock and Run would hang on the source's wg.Wait. On the
 // happy path the channel is already closed and drained, so this returns at once.
 func drain[T any](work <-chan T) {
-	for range work {
+	for {
+		if _, ok := <-work; !ok {
+			return
+		}
 	}
 }
 
