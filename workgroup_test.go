@@ -37,7 +37,7 @@ func errSource(err error) Source[int] {
 
 // countWorker returns a Worker that increments counter for every item.
 func countWorker(counter *atomic.Int64) Worker[int] {
-	return func(context.Context, int, int) error {
+	return func(context.Context, WorkerID, int) error {
 		counter.Add(1)
 		return nil
 	}
@@ -100,7 +100,7 @@ func TestRunProcessesAllItems(t *testing.T) {
 func barrierWorker(n int, seen *sync.Map) Worker[int] {
 	var arrived sync.WaitGroup
 	arrived.Add(n)
-	return func(_ context.Context, id, _ int) error {
+	return func(_ context.Context, id WorkerID, _ int) error {
 		seen.Store(id, true)
 		arrived.Done()
 		arrived.Wait()
@@ -135,7 +135,7 @@ func TestRunDistinctWorkerIDs(t *testing.T) {
 			assert.Equal(t, tt.want, countKeys(&seen))
 			// Every worker id in [0, want) is observed — distinct and 0-based.
 			for id := range tt.want {
-				_, ok := seen.Load(id)
+				_, ok := seen.Load(WorkerID(id))
 				assert.Truef(t, ok, "worker ID %d observed", id)
 			}
 		})
@@ -152,7 +152,7 @@ func fanIn(s Source[int], w Worker[int]) error {
 	return FanIn(context.Background(), s, w)
 }
 
-func fanOut(n int) func(Source[int], Worker[int]) error {
+func fanOut(n Workers) func(Source[int], Worker[int]) error {
 	return func(s Source[int], w Worker[int]) error {
 		return FanOut(context.Background(), n, s, w)
 	}
@@ -183,7 +183,7 @@ func TestConsumeCancelGuard(t *testing.T) {
 	close(work)
 
 	var calls atomic.Int64
-	worker := Worker[int](func(context.Context, int, int) error {
+	worker := Worker[int](func(context.Context, WorkerID, int) error {
 		calls.Add(1)
 		return nil
 	})
@@ -201,7 +201,7 @@ func TestRunContextCancel(t *testing.T) {
 	// full stream. Determinism: the source's context-aware send unwinds on
 	// ctx.Done(), so Run cannot hang regardless of scheduling.
 	const items = 1000
-	worker := Worker[int](func(context.Context, int, int) error {
+	worker := Worker[int](func(context.Context, WorkerID, int) error {
 		if processed.Add(1) == 1 {
 			cancel()
 		}
@@ -218,7 +218,7 @@ func TestRunPreCancelledContext(t *testing.T) {
 	cancel()
 
 	var called atomic.Bool
-	worker := Worker[int](func(context.Context, int, int) error {
+	worker := Worker[int](func(context.Context, WorkerID, int) error {
 		called.Store(true)
 		return nil
 	})
@@ -230,7 +230,7 @@ func TestRunPreCancelledContext(t *testing.T) {
 
 func TestRunFailFast(t *testing.T) {
 	var processed atomic.Int64
-	worker := Worker[int](func(_ context.Context, _, item int) error {
+	worker := Worker[int](func(_ context.Context, _ WorkerID, item int) error {
 		processed.Add(1)
 		if item == 5 {
 			return errWorker
@@ -256,7 +256,7 @@ func TestRunDrainsNonCooperativeSource(t *testing.T) {
 		}
 		return nil
 	})
-	worker := Worker[int](func(context.Context, int, int) error { return errWorker })
+	worker := Worker[int](func(context.Context, WorkerID, int) error { return errWorker })
 
 	err := Run(context.Background(), source, worker, Workers(1))
 	assert.ErrorIs(t, err, errWorker)
@@ -264,7 +264,7 @@ func TestRunDrainsNonCooperativeSource(t *testing.T) {
 
 func TestRunCollectAll(t *testing.T) {
 	const items = 5
-	worker := Worker[int](func(context.Context, int, int) error { return errWorker })
+	worker := Worker[int](func(context.Context, WorkerID, int) error { return errWorker })
 
 	err := Run(context.Background(), counterSource(items), worker, Workers(1), CollectAll)
 	require.Error(t, err)
@@ -322,7 +322,7 @@ func TestRunLogging(t *testing.T) {
 
 func TestRunErrorLogging(t *testing.T) {
 	var buf bytes.Buffer
-	worker := Worker[int](func(context.Context, int, int) error { return errWorker })
+	worker := Worker[int](func(context.Context, WorkerID, int) error { return errWorker })
 
 	err := Run(context.Background(), counterSource(1), worker, Workers(1), captureLogger(&buf))
 	assert.ErrorIs(t, err, errWorker)
@@ -350,10 +350,10 @@ func TestPipeTransform(t *testing.T) {
 	var sum atomic.Int64
 
 	ctx := context.Background()
-	doubled := Pipe(4, counterSource(n), func(_ context.Context, _, item int) (int, error) {
+	doubled := Pipe(4, counterSource(n), func(_ context.Context, _ WorkerID, item int) (int, error) {
 		return item * 2, nil
 	})
-	worker := Worker[int](func(_ context.Context, _, item int) error {
+	worker := Worker[int](func(_ context.Context, _ WorkerID, item int) error {
 		sum.Add(int64(item))
 		return nil
 	})
@@ -365,7 +365,7 @@ func TestPipeTransform(t *testing.T) {
 func TestPipeTransformError(t *testing.T) {
 	transformErr := errors.New("transform failed")
 	ctx := context.Background()
-	piped := Pipe(1, counterSource(10), func(_ context.Context, _, item int) (int, error) {
+	piped := Pipe(1, counterSource(10), func(_ context.Context, _ WorkerID, item int) (int, error) {
 		if item == 3 {
 			return 0, transformErr
 		}
@@ -380,7 +380,7 @@ func TestPipeContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	doubled := Pipe(1, counterSource(1000), func(_ context.Context, _, item int) (int, error) {
+	doubled := Pipe(1, counterSource(1000), func(_ context.Context, _ WorkerID, item int) (int, error) {
 		return item * 2, nil
 	})
 
@@ -424,7 +424,7 @@ func TestContextError(t *testing.T) {
 
 func ExampleRun() {
 	source := counterSource(10)
-	worker := Worker[int](func(context.Context, int, int) error { return nil })
+	worker := Worker[int](func(context.Context, WorkerID, int) error { return nil })
 
 	err := Run(context.Background(), source, worker, Workers(4))
 	fmt.Println(err)
@@ -440,7 +440,7 @@ func ExampleFanOut() {
 		}
 		return nil
 	})
-	worker := Worker[string](func(context.Context, int, string) error { return nil })
+	worker := Worker[string](func(context.Context, WorkerID, string) error { return nil })
 
 	err := FanOut(context.Background(), 2, source, worker)
 	fmt.Println(err)
@@ -449,12 +449,12 @@ func ExampleFanOut() {
 
 func ExamplePipe() {
 	ctx := context.Background()
-	doubled := Pipe(2, counterSource(6), func(_ context.Context, _, item int) (int, error) {
+	doubled := Pipe(2, counterSource(6), func(_ context.Context, _ WorkerID, item int) (int, error) {
 		return item * 2, nil
 	})
 
 	var sum atomic.Int64
-	err := FanIn(ctx, doubled, func(_ context.Context, _, item int) error {
+	err := FanIn(ctx, doubled, func(_ context.Context, _ WorkerID, item int) error {
 		sum.Add(int64(item))
 		return nil
 	})

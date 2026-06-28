@@ -7,14 +7,17 @@ import (
 	"sync"
 )
 
+// WorkerID is the 0-based index identifying a worker goroutine within a group.
+type WorkerID int
+
 // Source generates work items by sending them to the channel.
 type Source[T any] func(context.Context, chan<- T) error
 
 // Worker processes a single work item. id is the 0-based worker index.
-type Worker[T any] func(context.Context, int, T) error
+type Worker[T any] func(context.Context, WorkerID, T) error
 
 // Transformer maps an input item to an output item within a Pipe stage.
-type Transformer[In, Out any] func(context.Context, int, In) (Out, error)
+type Transformer[In, Out any] func(context.Context, WorkerID, In) (Out, error)
 
 // Run distributes work from source across N workers (default: NumCPU).
 // Blocks until all work is processed or context is cancelled.
@@ -81,7 +84,7 @@ func runWorkers[T any](ctx context.Context, cancel context.CancelCauseFunc, cfg 
 	for i := range cfg.workers {
 		go func() {
 			defer wg.Done()
-			consume(ctx, cancel, cfg.onError, worker, i, work, record)
+			consume(ctx, cancel, cfg.onError, worker, WorkerID(i), work, record)
 		}()
 	}
 	wg.Wait()
@@ -91,7 +94,7 @@ func runWorkers[T any](ctx context.Context, cancel context.CancelCauseFunc, cfg 
 // consume drains the work channel for a single worker, invoking worker on
 // each item and recording any error. In FailFast mode the group is cancelled
 // and the worker stops on the first error.
-func consume[T any](ctx context.Context, cancel context.CancelCauseFunc, mode onError, worker Worker[T], id int, work <-chan T, record func(error)) {
+func consume[T any](ctx context.Context, cancel context.CancelCauseFunc, mode onError, worker Worker[T], id WorkerID, work <-chan T, record func(error)) {
 	for item := range work {
 		if ctx.Err() != nil {
 			return
@@ -109,8 +112,8 @@ func consume[T any](ctx context.Context, cancel context.CancelCauseFunc, mode on
 }
 
 // FanOut distributes work across n workers. Equivalent to Run with Workers(n).
-func FanOut[T any](ctx context.Context, n int, source Source[T], worker Worker[T], opts ...Optional) error {
-	return Run(ctx, source, worker, append([]Optional{Workers(n)}, opts...)...)
+func FanOut[T any](ctx context.Context, n Workers, source Source[T], worker Worker[T], opts ...Optional) error {
+	return Run(ctx, source, worker, append([]Optional{n}, opts...)...)
 }
 
 // FanIn processes work with exactly 1 worker. Equivalent to Run with Workers(1).
@@ -121,16 +124,16 @@ func FanIn[T any](ctx context.Context, source Source[T], worker Worker[T], opts 
 // Pipe creates a Source from a transformation, enabling stage chaining.
 // The returned Source, when consumed by a downstream Run, executes the
 // upstream source with n workers applying transform to each item.
-func Pipe[In, Out any](n int, source Source[In], transform Transformer[In, Out], opts ...Optional) Source[Out] {
+func Pipe[In, Out any](n Workers, source Source[In], transform Transformer[In, Out], opts ...Optional) Source[Out] {
 	return func(ctx context.Context, out chan<- Out) error {
-		worker := Worker[In](func(ctx context.Context, id int, item In) error {
+		worker := Worker[In](func(ctx context.Context, id WorkerID, item In) error {
 			result, err := transform(ctx, id, item)
 			if err != nil {
 				return err
 			}
 			return send(ctx, out, result)
 		})
-		return Run(ctx, source, worker, append([]Optional{Workers(n)}, opts...)...)
+		return Run(ctx, source, worker, append([]Optional{n}, opts...)...)
 	}
 }
 

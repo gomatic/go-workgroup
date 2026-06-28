@@ -29,7 +29,7 @@ source := workgroup.Source[int](func(ctx context.Context, out chan<- int) error 
     return nil
 })
 
-worker := workgroup.Worker[int](func(ctx context.Context, id int, item int) error {
+worker := workgroup.Worker[int](func(ctx context.Context, id workgroup.WorkerID, item int) error {
     fmt.Printf("worker %d processed item %d\n", id, item)
     return nil
 })
@@ -47,7 +47,7 @@ err := workgroup.FanIn(ctx, source, worker)
 
 ```go
 doubled := workgroup.Pipe(4, source,
-    func(ctx context.Context, id int, item int) (int, error) {
+    func(ctx context.Context, id workgroup.WorkerID, item int) (int, error) {
         return item * 2, nil
     },
 )
