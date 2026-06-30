@@ -50,7 +50,12 @@ func Run[T any](ctx context.Context, source Source[T], worker Worker[T], opts ..
 // cancels the group with the source error on failure and always closes the
 // channel so workers terminate. The returned function blocks until the source
 // goroutine has returned and yields its error.
-func runSource[T any](ctx context.Context, cancel context.CancelCauseFunc, source Source[T], work chan<- T) func() error {
+func runSource[T any](
+	ctx context.Context,
+	cancel context.CancelCauseFunc,
+	source Source[T],
+	work chan<- T,
+) func() error {
 	var wg sync.WaitGroup
 	var sourceErr error
 	wg.Add(1)
@@ -70,7 +75,13 @@ func runSource[T any](ctx context.Context, cancel context.CancelCauseFunc, sourc
 
 // runWorkers starts cfg.workers consumer goroutines and returns their
 // collected errors once every worker has drained the channel.
-func runWorkers[T any](ctx context.Context, cancel context.CancelCauseFunc, cfg settings, worker Worker[T], work <-chan T) []error {
+func runWorkers[T any](
+	ctx context.Context,
+	cancel context.CancelCauseFunc,
+	cfg settings,
+	worker Worker[T],
+	work <-chan T,
+) []error {
 	var mu sync.Mutex
 	var errs []error
 	record := func(err error) {
@@ -94,7 +105,15 @@ func runWorkers[T any](ctx context.Context, cancel context.CancelCauseFunc, cfg 
 // consume drains the work channel for a single worker, invoking worker on
 // each item and recording any error. In FailFast mode the group is cancelled
 // and the worker stops on the first error.
-func consume[T any](ctx context.Context, cancel context.CancelCauseFunc, mode onError, worker Worker[T], id WorkerID, work <-chan T, record func(error)) {
+func consume[T any](
+	ctx context.Context,
+	cancel context.CancelCauseFunc,
+	mode onError,
+	worker Worker[T],
+	id WorkerID,
+	work <-chan T,
+	record func(error),
+) {
 	for item := range work {
 		if ctx.Err() != nil {
 			return

@@ -20,15 +20,71 @@ func TestNewSettings(t *testing.T) {
 		wantWorkers int
 		wantOnError onError
 	}{
-		{name: "defaults", opts: nil, wantWorkers: runtime.NumCPU(), wantName: "", wantOnError: FailFast, wantLogger: slog.Default()},
-		{name: "workers set", opts: []Optional{Workers(4)}, wantWorkers: 4, wantOnError: FailFast, wantLogger: slog.Default()},
-		{name: "workers zero clamps to NumCPU", opts: []Optional{Workers(0)}, wantWorkers: runtime.NumCPU(), wantOnError: FailFast, wantLogger: slog.Default()},
-		{name: "workers negative clamps to NumCPU", opts: []Optional{Workers(-5)}, wantWorkers: runtime.NumCPU(), wantOnError: FailFast, wantLogger: slog.Default()},
-		{name: "name set", opts: []Optional{Name("grp")}, wantWorkers: runtime.NumCPU(), wantName: "grp", wantOnError: FailFast, wantLogger: slog.Default()},
-		{name: "collect-all set", opts: []Optional{CollectAll}, wantWorkers: runtime.NumCPU(), wantOnError: CollectAll, wantLogger: slog.Default()},
-		{name: "logger set", opts: []Optional{Log{logger}}, wantWorkers: runtime.NumCPU(), wantOnError: FailFast, wantLogger: logger},
-		{name: "nil logger clamps to default", opts: []Optional{Log{nil}}, wantWorkers: runtime.NumCPU(), wantOnError: FailFast, wantLogger: slog.Default()},
-		{name: "nil option skipped", opts: []Optional{nil, Workers(2), nil}, wantWorkers: 2, wantOnError: FailFast, wantLogger: slog.Default()},
+		{
+			name:        "defaults",
+			opts:        nil,
+			wantWorkers: runtime.NumCPU(),
+			wantName:    "",
+			wantOnError: FailFast,
+			wantLogger:  slog.Default(),
+		},
+		{
+			name:        "workers set",
+			opts:        []Optional{Workers(4)},
+			wantWorkers: 4,
+			wantOnError: FailFast,
+			wantLogger:  slog.Default(),
+		},
+		{
+			name:        "workers zero clamps to NumCPU",
+			opts:        []Optional{Workers(0)},
+			wantWorkers: runtime.NumCPU(),
+			wantOnError: FailFast,
+			wantLogger:  slog.Default(),
+		},
+		{
+			name:        "workers negative clamps to NumCPU",
+			opts:        []Optional{Workers(-5)},
+			wantWorkers: runtime.NumCPU(),
+			wantOnError: FailFast,
+			wantLogger:  slog.Default(),
+		},
+		{
+			name:        "name set",
+			opts:        []Optional{Name("grp")},
+			wantWorkers: runtime.NumCPU(),
+			wantName:    "grp",
+			wantOnError: FailFast,
+			wantLogger:  slog.Default(),
+		},
+		{
+			name:        "collect-all set",
+			opts:        []Optional{CollectAll},
+			wantWorkers: runtime.NumCPU(),
+			wantOnError: CollectAll,
+			wantLogger:  slog.Default(),
+		},
+		{
+			name:        "logger set",
+			opts:        []Optional{Log{logger}},
+			wantWorkers: runtime.NumCPU(),
+			wantOnError: FailFast,
+			wantLogger:  logger,
+		},
+		{
+			name:        "nil logger clamps to default",
+			opts:        []Optional{Log{nil}},
+			wantWorkers: runtime.NumCPU(),
+			wantOnError: FailFast,
+			wantLogger:  slog.Default(),
+		},
+		{
+			name:        "nil option skipped",
+			opts:        []Optional{nil, Workers(2), nil},
+			wantWorkers: 2,
+			wantOnError: FailFast,
+			wantLogger:  slog.Default(),
+		},
 	}
 
 	for _, tt := range tests {
@@ -76,7 +132,12 @@ func TestSettingsOutcome(t *testing.T) {
 	}{
 		{name: "worker errors take priority", errs: []error{worker}, wantIs: worker},
 		{name: "real source error propagates", sourceErr: source, wantIs: source},
-		{name: "context source error falls through to ctx", sourceErr: context.Canceled, cancel: true, wantIs: context.Canceled},
+		{
+			name:      "context source error falls through to ctx",
+			sourceErr: context.Canceled,
+			cancel:    true,
+			wantIs:    context.Canceled,
+		},
 		{name: "context cancelled with no errors", cancel: true, wantIs: context.Canceled},
 		{name: "clean success", wantNil: true},
 	}
