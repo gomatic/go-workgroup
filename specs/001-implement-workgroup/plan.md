@@ -35,7 +35,7 @@ deterministic with 100% meaningful coverage.
 | IV. Errors Over Fatals | PASS | All failures returned as `error`, no log.Fatal/panic/os.Exit |
 | V. Deterministic Testability | PASS | No time.Sleep, no rand, controlled inputs, -race enabled |
 | VI. Stdlib Only | PASS | Zero external module dependencies |
-| VII. Embedded Options Pattern | PASS | `Optional` interface, named types with `Apply(*settings)`, self-contained |
+| VII. Embedded Options Pattern | PASS | `Optional` interface, named types with `apply(settings) settings`, self-contained |
 
 **Result**: All gates pass. No violations.
 

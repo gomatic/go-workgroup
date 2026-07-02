@@ -29,15 +29,15 @@ Function type that processes a single work item.
 
 Interface for configuring workgroup behavior.
 
-- **Method**: `Apply(*settings)`
-- **Contract**: Mutates the settings struct. Nil-safe — nil options are
+- **Method**: `apply(settings) settings`
+- **Contract**: Pure transformer: returns the updated settings value. Nil-safe — nil options are
   skipped during application.
 
 ## Public Option Types
 
 All implement `Optional`.
 
-| Type | Underlying | Exported | Apply Behavior |
+| Type | Underlying | Exported | apply behavior |
 |------|-----------|----------|----------------|
 | `Workers` | `int` | yes | Sets worker goroutine count |
 | `Name` | `string` | yes | Sets workgroup name for log output |
@@ -51,7 +51,7 @@ exported constants `FailFast` and `CollectAll` are usable by callers.
 This prevents construction of arbitrary values.
 
 - **Constants**: `FailFast` (0, default), `CollectAll` (1)
-- **Implements**: `Optional` via `Apply(*settings)`
+- **Implements**: `Optional` via `apply(settings) settings`
 
 ## Internal Types
 
@@ -77,7 +77,7 @@ Private struct holding resolved configuration.
 ## Relationships
 
 ```text
-Optional ──Apply──▶ settings
+Optional ──apply──▶ settings
 Source[T] ──feeds──▶ chan T ──consumed by──▶ Worker[T]
 Pipe[In,Out] ──wraps──▶ Source[In] + transform ──produces──▶ Source[Out]
 Run ──coordinates──▶ Source + Workers + settings + context

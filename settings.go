@@ -14,14 +14,16 @@ type settings struct {
 	onError onError
 }
 
-// must clamps and validates settings after option application.
-func (s *settings) must() {
+// must clamps and validates settings after option application, returning the
+// corrected value.
+func (s settings) must() settings {
 	if s.workers < 1 {
 		s.workers = runtime.NumCPU()
 	}
 	if s.logger == nil {
 		s.logger = slog.Default()
 	}
+	return s
 }
 
 // logAttrs builds the structured log attributes describing this workgroup.
@@ -62,9 +64,8 @@ func newSettings(opts []Optional) settings {
 	}
 	for _, o := range opts {
 		if o != nil {
-			o.Apply(&s)
+			s = o.apply(s)
 		}
 	}
-	s.must()
-	return s
+	return s.must()
 }

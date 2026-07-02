@@ -13,7 +13,7 @@ type Worker[T any] func(context.Context, int, T) error
 
 // Optional configures workgroup behavior.
 type Optional interface {
-    Apply(*settings)
+    apply(settings) settings
 }
 
 // onError controls error handling mode (unexported type — only

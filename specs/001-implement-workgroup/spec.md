@@ -167,7 +167,7 @@ FanIn starts exactly 1 worker.
 - **FR-005**: Library MUST support configurable error handling: fail-fast (default)
   and collect-all modes via an option type.
 - **FR-006**: Library MUST provide an `Optional` interface and named option types
-  (`Workers`, `Name`, `Log`, `OnError`) following the fmt.alt `Apply(*settings)`
+  (`Workers`, `Name`, `Log`, `OnError`) following the fmt.alt `apply(settings) settings`
   pattern, embedded without external imports.
 - **FR-007**: Library MUST provide `FanOut` and `FanIn` convenience functions with
   clear semantic meaning.
@@ -188,7 +188,7 @@ FanIn starts exactly 1 worker.
   Signature: `func(context.Context, chan<- T) error`.
 - **Worker**: A function that processes a single work item. Signature:
   `func(context.Context, int, T) error` where int is the worker ID.
-- **Optional**: An interface with method `Apply(*settings)` for configuring
+- **Optional**: An interface with method `apply(settings) settings` for configuring
   workgroup behavior.
 - **settings**: Internal struct holding resolved configuration (worker count,
   name, logger, error mode).
