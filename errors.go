@@ -1,38 +1,13 @@
 package workgroup
 
-import (
-	"fmt"
-	"strings"
-)
+import errs "github.com/gomatic/go-error"
 
-// Error is the workgroup package's sentinel-error type. Declare every error the
-// package can emit as a const of this type, so each path is matchable with
-// errors.Is instead of by string comparison. It mirrors gloo.Error and
-// repl.Error so error construction stays uniform across the ecosystem.
-type Error string
-
-func (e Error) Error() string { return string(e) }
-
-// With wraps a cause and appends contextual args. A non-nil cause is joined
-// with %w so errors.Is still matches both the sentinel and the cause. The args
-// are rendered space-separated, so callers pass clean key/value pairs —
-// .With(err, "file", name) — without baking separators into the key. (fmt.Sprint
-// would concatenate adjacent strings with no space, collapsing "file"+name into
-// one token.)
-func (e Error) With(err error, args ...any) error {
-	out := error(e)
-	if err != nil {
-		out = fmt.Errorf("%w: %w", e, err)
-	}
-	if len(args) > 0 {
-		out = fmt.Errorf("%w: %s", out, strings.TrimSuffix(fmt.Sprintln(args...), "\n"))
-	}
-	return out
-}
-
-var _ error = Error("")
-
+// The package's sentinel errors, declared as constants of go-error's
+// [errs.Const] so every path is matchable with errors.Is — never by string
+// comparison. Wrapping a cause or appending context goes through
+// errs.Const.With(cause, args...), which keeps both the sentinel and the
+// cause matchable.
 const (
-	ErrNilSource Error = "workgroup: nil source"
-	ErrNilWorker Error = "workgroup: nil worker"
+	ErrNilSource errs.Const = "workgroup: nil source"
+	ErrNilWorker errs.Const = "workgroup: nil worker"
 )

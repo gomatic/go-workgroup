@@ -5,65 +5,36 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// errBoom is a non-sentinel cause used to exercise With's wrapping branch.
+// errBoom is a non-sentinel cause used to exercise wrapping through With.
 var errBoom = errors.New("boom")
 
-func TestError(t *testing.T) {
-	assert.Equal(t, "workgroup: nil source", ErrNilSource.Error())
-}
-
-func TestErrorWith(t *testing.T) {
+func TestSentinels(t *testing.T) {
 	tests := []struct {
-		cause    error
-		name     string
-		sentinel Error
-		wantMsg  string
-		args     []any
+		err     error
+		wantErr error
+		name    string
 	}{
+		{name: "nil source matches itself", err: ErrNilSource, wantErr: ErrNilSource},
+		{name: "nil worker matches itself", err: ErrNilWorker, wantErr: ErrNilWorker},
+		{name: "With keeps the sentinel matchable", err: ErrNilSource.With(errBoom), wantErr: ErrNilSource},
+		{name: "With keeps the cause matchable", err: ErrNilSource.With(errBoom), wantErr: errBoom},
 		{
-			name:     "no args, nil cause returns the sentinel itself",
-			sentinel: ErrNilSource,
-			cause:    nil,
-			args:     nil,
-			wantMsg:  "workgroup: nil source",
-		},
-		{
-			name:     "no args, with cause wraps both sentinel and cause",
-			sentinel: ErrNilWorker,
-			cause:    errBoom,
-			args:     nil,
-			wantMsg:  "workgroup: nil worker: boom",
-		},
-		{
-			name:     "with args, nil cause appends context and wraps the sentinel",
-			sentinel: ErrNilSource,
-			cause:    nil,
-			args:     []any{"detail"},
-			wantMsg:  "workgroup: nil source: detail",
-		},
-		{
-			name:     "with cause and args, cause precedes space-separated args",
-			sentinel: ErrNilWorker,
-			cause:    errBoom,
-			args:     []any{"file", "in.txt"},
-			wantMsg:  "workgroup: nil worker: boom: file in.txt",
+			name:    "With args keeps the sentinel matchable",
+			err:     ErrNilWorker.With(nil, "worker", 3),
+			wantErr: ErrNilWorker,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.sentinel.With(tt.cause, tt.args...)
-			require.Error(t, err)
-			assert.Equal(t, tt.wantMsg, err.Error())
-			// The sentinel is ALWAYS matchable through With.
-			assert.ErrorIs(t, err, tt.sentinel)
-			// The cause is matchable whenever one was provided.
-			if tt.cause != nil {
-				assert.ErrorIs(t, err, tt.cause)
-			}
+			assert.ErrorIs(t, tt.err, tt.wantErr)
 		})
 	}
+}
+
+func TestSentinelsAreDistinct(t *testing.T) {
+	assert.NotErrorIs(t, ErrNilSource, ErrNilWorker)
+	assert.NotErrorIs(t, ErrNilWorker, ErrNilSource)
 }
