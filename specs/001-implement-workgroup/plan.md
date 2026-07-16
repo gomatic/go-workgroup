@@ -1,34 +1,21 @@
 # Implementation Plan: Implement workgroup
 
-**Branch**: `001-implement-workgroup` | **Date**: 2026-02-22 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `specs/001-implement-workgroup/spec.md`
+**Branch**: `001-implement-workgroup` | **Date**: 2026-02-22 | **Spec**: [spec.md](spec.md) **Input**: Feature specification from `specs/001-implement-workgroup/spec.md`
 
 ## Summary
 
-Implement a Go 1.26 library for concurrent work distribution using generics,
-context.Context, slog, and an embedded fmt.alt options pattern. The library
-replaces sync.WaitGroup boilerplate with type-safe top-level functions (Run,
-FanOut, FanIn, Pipe). All errors are returned, not fatal. Tests are
-deterministic with 100% meaningful coverage.
+Implement a Go 1.26 library for concurrent work distribution using generics, context.Context, slog, and an embedded fmt.alt options pattern. The library replaces sync.WaitGroup boilerplate with type-safe top-level functions (Run, FanOut, FanIn, Pipe). All errors are returned, not fatal. Tests are deterministic with 100% meaningful coverage.
 
 ## Technical Context
 
-**Language/Version**: Go 1.26
-**Primary Dependencies**: Go standard library only (sync, context, log/slog, errors, runtime)
-**Storage**: N/A
-**Testing**: `go test -race -cover ./...`
-**Target Platform**: All platforms supported by Go
-**Project Type**: Library
-**Performance Goals**: Minimal overhead over raw goroutines + sync.WaitGroup
-**Constraints**: Zero external dependencies, stdlib only
-**Scale/Scope**: ~300 LOC, 4 source files, 1 test file
+**Language/Version**: Go 1.26 **Primary Dependencies**: Go standard library only (sync, context, log/slog, errors, runtime) **Storage**: N/A **Testing**: `go test -race -cover ./...` **Target Platform**: All platforms supported by Go **Project Type**: Library **Performance Goals**: Minimal overhead over raw goroutines + sync.WaitGroup **Constraints**: Zero external dependencies, stdlib only **Scale/Scope**: ~300 LOC, 4 source files, 1 test file
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 | Principle | Status | Evidence |
-|-----------|--------|---------|
+| --- | --- | --- |
 | I. Type Safety via Generics | PASS | `Run[T]`, `Source[T]`, `Worker[T]` — no `interface{}`/`any` in public API |
 | II. Stateless Public API | PASS | Top-level functions only, no builder, no mutable struct |
 | III. Context-Driven Lifecycle | PASS | `context.Context` first parameter on Run, FanOut, FanIn, Pipe |
@@ -45,86 +32,62 @@ deterministic with 100% meaningful coverage.
 
 **Decision**: Unbuffered channel for work distribution.
 
-Unbuffered channels provide natural backpressure — the source blocks until a
-worker is ready. This prevents unbounded memory growth when the source
-produces faster than workers consume.
+Unbuffered channels provide natural backpressure — the source blocks until a worker is ready. This prevents unbounded memory growth when the source produces faster than workers consume.
 
-*Rejected*: Buffered channel (size = workers) — slightly higher throughput
-but buffered items are lost on cancellation and backpressure is less
-predictable.
+_Rejected_: Buffered channel (size = workers) — slightly higher throughput but buffered items are lost on cancellation and backpressure is less predictable.
 
 ### Error Collection Strategy
 
 **Decision**: Mutex-protected slice, `errors.Join` for aggregation.
 
-Workers run concurrently and may return errors simultaneously. A `sync.Mutex`
-guarding a `[]error` slice is the simplest correct approach. After all
-workers complete, `errors.Join` produces a single combined error. For
-fail-fast mode, the first error calls `context.CancelCauseFunc` and no
-further errors are collected.
+Workers run concurrently and may return errors simultaneously. A `sync.Mutex` guarding a `[]error` slice is the simplest correct approach. After all workers complete, `errors.Join` produces a single combined error. For fail-fast mode, the first error calls `context.CancelCauseFunc` and no further errors are collected.
 
-*Rejected*: Error channel (requires separate drain goroutine, unnecessary
-complexity). `sync.Once` for first error (only captures one, insufficient
-for collect-all mode).
+_Rejected_: Error channel (requires separate drain goroutine, unnecessary complexity). `sync.Once` for first error (only captures one, insufficient for collect-all mode).
 
 ### Context Cancellation Propagation
 
-**Decision**: `context.WithCancelCause` inside Run. Source and workers check
-`ctx.Done()` via select.
+**Decision**: `context.WithCancelCause` inside Run. Source and workers check `ctx.Done()` via select.
 
-`context.WithCancelCause` (Go 1.20+) attaches the first worker error as
-the cancellation cause. Flow:
+`context.WithCancelCause` (Go 1.20+) attaches the first worker error as the cancellation cause. Flow:
+
 1. Run creates child context with cancel.
 2. Source goroutine sends to work channel via `select` with `ctx.Done()`.
 3. Workers receive from work channel via `select` with `ctx.Done()`.
-4. On cancellation: source stops, workers drain and exit, channels close,
-   WaitGroup unblocks, Run returns.
+4. On cancellation: source stops, workers drain and exit, channels close, WaitGroup unblocks, Run returns.
 
-*Rejected*: `context.WithCancel` without cause (loses originating error).
-Manual done channel (duplicates context semantics).
+_Rejected_: `context.WithCancel` without cause (loses originating error). Manual done channel (duplicates context semantics).
 
 ### Pipe Execution Model
 
-**Decision**: Pipe returns a `Source[Out]` closure. Lazy execution — the
-upstream doesn't start until the downstream calls the returned Source.
+**Decision**: Pipe returns a `Source[Out]` closure. Lazy execution — the upstream doesn't start until the downstream calls the returned Source.
 
 When the downstream Run invokes the returned Source:
+
 1. Creates internal work channel for upstream items.
-2. Starts N workers that call the transform and send results to the
-   downstream channel.
+2. Starts N workers that call the transform and send results to the downstream channel.
 3. Starts the upstream source goroutine feeding the internal channel.
 4. Blocks until upstream is fully processed.
 5. Returns any errors from transform or upstream source.
 
 The downstream Run's context governs the entire pipeline.
 
-*Rejected*: Eager execution (goroutine leaks if Source never used).
-Intermediate buffer channel (memory overhead, complicates backpressure).
+_Rejected_: Eager execution (goroutine leaks if Source never used). Intermediate buffer channel (memory overhead, complicates backpressure).
 
 ### Source Error Handling
 
-**Decision**: Source errors are always fatal regardless of error mode.
-Collect-all applies only to worker errors.
+**Decision**: Source errors are always fatal regardless of error mode. Collect-all applies only to worker errors.
 
-The source is the single producer. If it fails, no more work items can be
-generated — there is nothing to "continue" with. Worker errors are
-independent (each processes different items), so continuing makes sense.
-Source failure means the input stream is broken.
+The source is the single producer. If it fails, no more work items can be generated — there is nothing to "continue" with. Worker errors are independent (each processes different items), so continuing makes sense. Source failure means the input stream is broken.
 
-*Rejected*: Collecting source error alongside worker errors (misleading —
-remaining items are never produced).
+_Rejected_: Collecting source error alongside worker errors (misleading — remaining items are never produced).
 
 ### Worker Lifecycle on Cancellation
 
-**Decision**: Workers finish their current item but do not pick up new items
-after context cancellation.
+**Decision**: Workers finish their current item but do not pick up new items after context cancellation.
 
-The worker function receives the context and can check it internally if it
-needs to abort mid-item. The library stops *dispatching* new items, not
-forcefully interrupting in-progress work.
+The worker function receives the context and can check it internally if it needs to abort mid-item. The library stops _dispatching_ new items, not forcefully interrupting in-progress work.
 
-*Rejected*: Force-kill workers mid-item (Go has no goroutine preemption;
-would require wrapping worker calls for no practical benefit).
+_Rejected_: Force-kill workers mid-item (Go has no goroutine preemption; would require wrapping worker calls for no practical benefit).
 
 ## Project Structure
 
@@ -151,15 +114,12 @@ workgroup.go           # Source[T], Worker[T], Run, FanOut, FanIn, Pipe (public 
 workgroup_test.go      # all tests — deterministic, 100% coverage
 ```
 
-**Structure Decision**: Flat package at repository root. Go library convention —
-no `src/` or `lib/` subdirectories. Four source files organized by concern:
-public options, private settings, and public API. Single test file covers all
-paths.
+**Structure Decision**: Flat package at repository root. Go library convention — no `src/` or `lib/` subdirectories. Four source files organized by concern: public options, private settings, and public API. Single test file covers all paths.
 
 ## Complexity Tracking
 
 > No constitution violations. Table intentionally empty.
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| (none) | — | — |
+| --------- | ---------- | ------------------------------------ |
+| (none)    | —          | —                                    |

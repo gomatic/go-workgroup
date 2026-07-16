@@ -1,8 +1,6 @@
 # Specification Quality Checklist: Implement workgroup
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-02-22
-**Feature**: [spec.md](../spec.md)
+**Purpose**: Validate specification completeness and quality before proceeding to planning **Created**: 2026-02-22 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
 
@@ -33,5 +31,4 @@
 
 - All items pass. Spec is ready for `/speckit.clarify` or `/speckit.plan`.
 - FR-001 through FR-012 map to user stories 1-6 with full acceptance scenarios.
-- Six edge cases identified covering nil inputs, invalid worker counts, nil options,
-  and pre-cancelled context.
+- Six edge cases identified covering nil inputs, invalid worker counts, nil options, and pre-cancelled context.

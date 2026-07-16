@@ -15,7 +15,7 @@ tests/
 
 ## Commands
 
-# Add commands for Go 1.26
+Add commands for Go 1.26
 
 ## Code Style
 

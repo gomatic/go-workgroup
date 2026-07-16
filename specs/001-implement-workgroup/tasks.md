@@ -1,7 +1,6 @@
 # Tasks: Implement workgroup
 
-**Input**: Design documents from `specs/001-implement-workgroup/`
-**Prerequisites**: plan.md, spec.md, data-model.md, contracts/api.md, quickstart.md
+**Input**: Design documents from `specs/001-implement-workgroup/` **Prerequisites**: plan.md, spec.md, data-model.md, contracts/api.md, quickstart.md
 
 **Tests**: TDD mandatory per constitution. Tests written first, verified failing, then implementation.
 

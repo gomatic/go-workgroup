@@ -58,7 +58,7 @@ func Pipe[In, Out any](ctx context.Context, n int, source Source[In], transform 
 ## Error Behavior
 
 | Condition | FailFast (default) | CollectAll |
-|-----------|-------------------|------------|
+| --- | --- | --- |
 | Worker returns error | Cancel context, return first error | Continue, join all errors |
 | Source returns error | Cancel context, return source error | Cancel context, return source error |
 | Context cancelled | Return context error | Return context error |
@@ -67,9 +67,9 @@ func Pipe[In, Out any](ctx context.Context, n int, source Source[In], transform 
 
 ## Option Defaults
 
-| Option | Default |
-|--------|---------|
+| Option  | Default            |
+| ------- | ------------------ |
 | Workers | `runtime.NumCPU()` |
-| Name | `""` (empty) |
-| Log | `slog.Default()` |
-| onError | `FailFast` |
+| Name    | `""` (empty)       |
+| Log     | `slog.Default()`   |
+| onError | `FailFast`         |
